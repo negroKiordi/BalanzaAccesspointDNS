@@ -15,3 +15,7 @@ Se puede consultar lo siguiente en "http://balanza.local"
 
 /peso            el valor instantaneo de peso
 
+/calibrarpeso?VALUE=  enviar como prámetro "VALUE" un float con el peso utilizado para la calibración
+
+/tarar          tara la balanza
+
