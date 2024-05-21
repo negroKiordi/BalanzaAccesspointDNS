@@ -6,9 +6,20 @@ Para usar la placa NodeMCU Amica usar NodeMCU 0.9 (ESP-12 Module)
 #include <ESP8266WebServer.h>
 #include <DNSServer.h>
 #include <Rfid134.h>
+#include <HX711_ADC.h>
+#include <EEPROM.h>
+#include "config.h"
 
 
 
+//pins:
+const int HX711_dout = 5; //cable blanco => amarillo     mcu > HX711 dout pin
+const int HX711_sck = 4; // cable negro => Marron       mcu > HX711 sck pin
+
+//HX711 constructor:
+HX711_ADC LoadCell(HX711_dout, HX711_sck);
+
+float balanzaLastData;
 
 const char* ssid = "Balanza"; // Nombre del Access Point
 const char* password = "balanza"; // Contraseña para el Access Point
@@ -60,18 +71,27 @@ void handleRoot() {
   server.send(200, "text/html", "<h1>Buen Augurio</h1>");
 }
 
-
 void handlePeso(){
-  float peso = obtenerValorDelSensor();
-  String mensaje = "<h1>Buen Augurio</h1><p>Valor del peso: " + String(peso) + " kg</p>";
-  server.send(200, "text/html", mensaje);
+    
+  server.send(200, "text/data", String(balanzaLastData));
 }
 
-void handlePesoData(){
-  float peso = obtenerValorDelSensor();
-  
-  server.send(200, "text/data", String(peso));
+void handlePesoEstable(){
+  server.send(501, "text/data", "Función no implementada");
+}
 
+void handleCalibrarPeso(){
+ String s_calibration = server.arg("VALUE");
+
+  // conver the string sent from the web page to an int
+  float calibrationValue = s_calibration.toFloat();
+  LoadCell.setCalFactor(calibrationValue); // set calibration value (float)
+  server.send(200, "text/data", "Se calibra el sensor" + String(calibrationValue));
+}
+
+void handleTarar(){
+  LoadCell.tareNoDelay();
+  server.send(200, "text/data", "");
 }
 
 void handleCaravanaData(){
@@ -91,13 +111,31 @@ void handleCaravanaNewData(){
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT); // Usaremos el LED integrado en la placa para indicar el estado del Access Point
 
+  Serial.begin(57600);
+  Serial.println();
+
+  Serial.println("Esperar 10s para tarar");
+  LoadCell.begin();
+  LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
+  unsigned long stabilizingtime = 10000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
+  boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+  LoadCell.start(stabilizingtime, _tare);
+  if (LoadCell.getTareTimeoutFlag()) {
+    Serial.println("Timeout, check MCU>HX711 wiring and pin designations");
+    while (1);
+  }
+  else {
+    float calibrationValue = 139.45;
+    LoadCell.setCalFactor(calibrationValue); // set calibration value (float)
+    Serial.println("Startup is complete");
+  }
+
+
   // Configurar el ESP8266 como Access Point
   WiFi.softAP(ssid, password);
 
   // Obtener la dirección IP del Access Point
   IPAddress apIP = WiFi.softAPIP();
-  Serial.begin(9600);
-  Serial.println();
   Serial.print("Punto de Acceso creado: ");
   Serial.println(ssid);
   Serial.print("Dirección IP del Access Point: ");
@@ -112,7 +150,9 @@ void setup() {
   // Manejadores de rutas para el servidor web
   server.on("/", handleRoot);
   server.on("/peso", handlePeso);
-  server.on("/pesodata", handlePesoData);
+  server.on("/pesoestable", handlePesoEstable);
+  server.on("/calibrarpeso", handleCalibrarPeso);
+  server.on("/tarar", handleTarar);
   server.on("/caravanadata", handleCaravanaData);
   server.on("/caravananew", handleCaravanaNewData);
   server.begin();
@@ -125,13 +165,26 @@ void loop() {
   server.handleClient(); // Manejar las solicitudes del servidor web
   // Tu código principal, si necesitas ejecutar alguna otra lógica mientras el Access Point está activo
   rfid.loop();
+  balanzaLoop();
   
 }
 
+void balanzaLoop() {
+  static boolean newDataReady = 0;
+  static unsigned long t = 0;
+  const int serialPrintInterval = 500; //increase value to slow down serial print activity
 
-float obtenerValorDelSensor() {
-  static int x = 0;// Implementa la lógica para obtener el valor del sensor aquí
-  // Reemplaza esto con la lógica específica para tu sensor
-  x++;
-  return 10.5 + x; // Reemplaza con el valor real obtenido del sensor
+  // check for new data/start next conversion:
+  if (LoadCell.update()) newDataReady = true;
+
+  // get smoothed value from the dataset:
+  if (newDataReady) {
+    if (millis() > t + serialPrintInterval) {
+      balanzaLastData = LoadCell.getData();
+      Serial.print("Load_cell output val: ");
+      Serial.println(balanzaLastData);
+      newDataReady = 0;
+      t = millis();
+    }
+  }
 }
