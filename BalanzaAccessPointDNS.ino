@@ -6,15 +6,10 @@ Para usar la placa NodeMCU Amica usar NodeMCU 0.9 (ESP-12 Module)
 #include <ESP8266WebServer.h>
 #include <DNSServer.h>
 #include <Rfid134.h>
+#include "configHX711_ADC.h"
 #include <HX711_ADC.h>
-#include <EEPROM.h>
-#include "config.h"
+#include "SuperMon.h"
 
-
-
-//pins:
-const int HX711_dout = 5; //cable blanco => amarillo     mcu > HX711 dout pin
-const int HX711_sck = 4; // cable negro => Marron       mcu > HX711 sck pin
 
 //HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
@@ -68,11 +63,51 @@ Rfid134<HardwareSerial, RfidNotify> rfid(Serial);
 
 
 void handleRoot() {
-  server.send(200, "text/html", "<h1>Buen Augurio</h1>");
+  Serial.println("sending web page");
+  server.send(200, "text/html", PAGE_MAIN);
 }
 
-void handlePeso(){
+
+char XML[2048];
+char buf[32];
+
+
+// code to send the main web page
+// I avoid string data types at all cost hence all the char mainipulation code
+void sendXML() {
+  char aux;
     
+  //Serial.println("sending xml");
+
+  strcpy(XML, "<?xml version = '1.0'?>\n<Data>\n");
+
+  // send caravana nueva true o false
+  if(lc_newData) aux = 1;
+  else aux = 0;
+  sprintf(buf, "<caravananew>%d</caracananew>\n", aux );
+  strcat(XML, buf);
+
+  // send caravana
+  sprintf(buf, "<caravana>%d</caravana>\n", String(lc_ID));
+  strcat(XML, buf);
+
+  // send Peso
+  sprintf(buf, "<peso>%d</peso>\n", String(balanzaLastData));
+  strcat(XML, buf);
+
+  strcat(XML, "</Data>\n");
+  // wanna see what the XML code looks like?
+  // actually print it to the serial monitor and use some text editor to get the size
+  // then pad and adjust char XML[2048]; above
+  Serial.println(XML);
+
+  // you may have to play with this value, big pages need more porcessing time, and hence
+  // a longer timeout that 200 ms
+  server.send(200, "text/xml", XML);
+}
+
+
+void handlePeso(){
   server.send(200, "text/data", String(balanzaLastData));
 }
 
@@ -148,7 +183,9 @@ void setup() {
   digitalWrite(LED_BUILTIN, HIGH); // Encender el LED para indicar que el Access Point está activo
 
   // Manejadores de rutas para el servidor web
+
   server.on("/", handleRoot);
+  server.on("/xml", sendXML);
   server.on("/peso", handlePeso);
   server.on("/pesoestable", handlePesoEstable);
   server.on("/calibrarpeso", handleCalibrarPeso);
@@ -172,7 +209,7 @@ void loop() {
 void balanzaLoop() {
   static boolean newDataReady = 0;
   static unsigned long t = 0;
-  const int serialPrintInterval = 500; //increase value to slow down serial print activity
+  const int serialPrintInterval = 1000; //increase value to slow down serial print activity
 
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
