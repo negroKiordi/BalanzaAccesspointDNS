@@ -160,9 +160,9 @@ const char PAGE_MAIN[] PROGMEM = R"=====(
       <div class="navbar fixed-top">
           <div class="container">
             <div class="navtitle" id = "pesoinstantaneo">0000 kg</div>
-            <div class="navdata" id = "date">dd/mm/yyyy</div>
+            <div class="navdata" id = "fecha">dd/mm/yyyy</div>
             <div class="navheading">FECHA</div><br>
-            <div class="navdata" id = "time">00:00:00</div>
+            <div class="navdata" id = "hora">00:00:00</div>
             <div class="navheading">HORA</div>
             
           </div>
@@ -179,7 +179,7 @@ const char PAGE_MAIN[] PROGMEM = R"=====(
     <button type="button" class = "btn" id = "btnGuardar" onclick="ButtonPressGuardar()">Guardar</button>
     <br>
     <br>
-    <div class="bodytext" id="registro">0000 kg   ID 000000 </div>
+    <div class="bodytext" id="registro">xxxx kg   ID: xxxxx </div>
     <br>
     </div>
     <br>
@@ -210,25 +210,7 @@ const char PAGE_MAIN[] PROGMEM = R"=====(
     // and send a processing string back to server
     // this processing string is use in the .on method
     function ButtonPressGuardar() {
-      var xhttp = new XMLHttpRequest(); 
-      var message;
-      // if you want to handle an immediate reply (like status from the ESP
-      // handling of the button press use this code
-      // since this button status from the ESP is in the main XML code
-      // we don't need this
-      // remember that if you want immediate processing feedbac you must send it
-      // in the ESP handling function and here
-      /*
-      xhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-          message = this.responseText;
-          // update some HTML data
-        }
-      }
-      */
-       
-      xhttp.open("PUT", "BUTTON_0", false);
-      xhttp.send();
+      document.getElementById("registro").innerHTML = document.getElementById("pesoestable").innerHTML +"   " + document.getElementById("caravana").innerHTML;
     }
 
 
@@ -253,17 +235,21 @@ const char PAGE_MAIN[] PROGMEM = R"=====(
       message = xmldoc[0].firstChild.nodeValue;
       document.getElementById("pesoinstantaneo").innerHTML=message;
   
-/*  
-      xmldoc = xmlResponse.getElementsByTagName("LED");
+      xmldoc = xmlResponse.getElementsByTagName("pesoestable"); 
       message = xmldoc[0].firstChild.nodeValue;
+      document.getElementById("pesoestable").innerHTML=message;
+
+
+      //xmldoc = xmlResponse.getElementsByTagName("LED");
+      //message = xmldoc[0].firstChild.nodeValue;
   
-      if (message == 0){
-        document.getElementById("btn0").innerHTML="Turn ON";
-      }
-      else{
-        document.getElementById("btn0").innerHTML="Turn OFF";
-      }
-*/         
+      //if (message == 0){
+      //  document.getElementById("btn0").innerHTML="Turn ON";
+      //}
+      //else{
+      //  document.getElementById("btn0").innerHTML="Turn OFF";
+    }
+   
   
     // general processing code for the web page to ask for an XML steam
     // this is actually why you need to keep sending data to the page to 

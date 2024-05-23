@@ -68,8 +68,8 @@ void handleRoot() {
 }
 
 
-char XML[2048];
-char buf[32];
+char bufXML[2048];
+char buf[64];
 
 
 // code to send the main web page
@@ -77,37 +77,32 @@ char buf[32];
 void sendXML() {
   char aux;
     
-  //Serial.println("sending xml");
 
-  strcpy(XML, "<?xml version = '1.0'?>\n<Data>\n");
-
-  // send caravana nueva true o false
-  if(lc_newData) aux = 1;
-  else aux = 0;
-  sprintf(buf, "<caravananew>%d</caracananew>\n", aux );
-  strcat(XML, buf);
-
+  strcpy(bufXML, "<?xml version = '1.0'?>\n<Data>\n");
+  
   // send caravana
-  sprintf(buf, "<caravana>%d</caravana>\n", String(lc_ID));
-  strcat(XML, buf);
+  sprintf(buf, "<caravana>%s</caravana>\n", String(lc_ID));
+  strcat(bufXML, buf);
 
   // send Peso
-  sprintf(buf, "<peso>%d</peso>\n", String(balanzaLastData));
-  strcat(XML, buf);
+  sprintf(buf, "<peso>%s kg</peso>\n", String(balanzaLastData));
+  strcat(bufXML, buf);
 
-  strcat(XML, "</Data>\n");
+  // send Peso estable
+  sprintf(buf, "<pesoestable>%s kg</pesoestable>\n", String(balanzaLastData));
+  strcat(bufXML, buf);
+
+  strcat(bufXML, "</Data>\n");
   // wanna see what the XML code looks like?
   // actually print it to the serial monitor and use some text editor to get the size
   // then pad and adjust char XML[2048]; above
-  Serial.println(XML);
 
-  // you may have to play with this value, big pages need more porcessing time, and hence
-  // a longer timeout that 200 ms
-  server.send(200, "text/xml", XML);
+  server.send(200, "text/xml", bufXML);
 }
 
 
 void handlePeso(){
+  Serial.println("sending peso");
   server.send(200, "text/data", String(balanzaLastData));
 }
 
@@ -149,10 +144,10 @@ void setup() {
   Serial.begin(57600);
   Serial.println();
 
-  Serial.println("Esperar 10s para tarar");
+  Serial.println("Esperar 2s para tarar");
   LoadCell.begin();
   LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
-  unsigned long stabilizingtime = 10000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
+  unsigned long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
   boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
   LoadCell.start(stabilizingtime, _tare);
   if (LoadCell.getTareTimeoutFlag()) {
